@@ -8,7 +8,7 @@
 struct ring_buffer {
     int32_t data[WINDOW_SIZE];
     uint16_t head;
-    uint8_t filled;
+    uint16_t filled;
 };
 
 void rb_init(struct ring_buffer *rb);
