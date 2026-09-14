@@ -3,6 +3,8 @@
 #include <math.h>
 #include "../intent.h"
 #include "calibration.h"
+#include "envelope.h"
+#include "ring_buffer.h"
 
 int test_grip(void)
 {
@@ -579,5 +581,193 @@ int test_calibration_to_intent(void)
     }
 
     printf("PASS: calibration to intent\n");
+    return 0;
+}
+
+int test_zero_window(void)
+{
+    struct envelope_t e;
+
+    envelope_init(&e, 1000.0f, 20.0f, 0);
+
+    if (e.window != 1) {
+        printf("FAIL: zero window was not corrected\n");
+        return 1;
+    }
+
+    printf("PASS: zero window\n");
+    return 0;
+}
+
+int test_ring_buffer_empty_read(void)
+{
+    struct ring_buffer rb;
+    int32_t sample;
+
+    rb_init(&rb);
+
+    if (rb_get(&rb, 0, &sample) == 0) {
+        printf("FAIL: empty ring buffer read succeeded\n");
+        return 1;
+    }
+
+    printf("PASS: empty ring buffer read\n");
+    return 0;
+}
+
+
+int test_ring_buffer_wraparound(void)
+{
+    struct ring_buffer rb;
+    int32_t sample;
+
+    rb_init(&rb);
+
+    for (int i = 0; i < WINDOW_SIZE + 10; i++) {
+        rb_push(&rb, i);
+    }
+
+    if (rb.filled != WINDOW_SIZE) {
+        printf("FAIL: ring buffer filled incorrectly\n");
+        return 1;
+    }
+
+    if (rb_get(&rb, 0, &sample) != 0 || sample != WINDOW_SIZE + 9) {
+        printf("FAIL: newest sample incorrect\n");
+        return 1;
+    }
+
+    if (rb_get(&rb, WINDOW_SIZE - 1, &sample) != 0 || sample != 10) {
+        printf("FAIL: oldest sample incorrect\n");
+        return 1;
+    }
+
+    printf("PASS: ring buffer wraparound\n");
+    return 0;
+}
+
+int test_envelope_reset(void)
+{
+    struct envelope_t e;
+
+    envelope_init(&e, 1000.0f, 20.0f, 100);
+
+    envelope_update(&e, 1000);
+    envelope_update(&e, 2000);
+
+    if (e.rect_buf.filled == 0) {
+        printf("FAIL: envelope buffer did not receive samples\n");
+        return 1;
+    }
+
+    envelope_reset(&e);
+
+    if (e.rect_buf.filled != 0) {
+        printf("FAIL: envelope buffer was not reset\n");
+        return 1;
+    }
+
+    if (e.prev_input != 0.0f ||
+        e.prev_output != 0.0f ||
+        e.primed != 0) {
+        printf("FAIL: envelope filter state was not reset\n");
+        return 1;
+    }
+
+    printf("PASS: envelope reset\n");
+    return 0;
+}
+
+
+int test_envelope_startup(void)
+{
+    struct envelope_t e;
+    int32_t output;
+
+    envelope_init(&e, 1000.0f, 20.0f, 100);
+
+    output = envelope_update(&e, 1000);
+
+    if (output != 0) {
+        printf("FAIL: envelope startup produced transient\n");
+        return 1;
+    }
+
+    if (e.primed != 1) {
+        printf("FAIL: envelope was not primed\n");
+        return 1;
+    }
+
+    printf("PASS: envelope startup\n");
+    return 0;
+}
+
+int test_empty_calibration(void)
+{
+    calibration cal;
+    int32_t samples[] = {10, 20, 30};
+
+    if (calibration_calculate(
+            &cal,
+            samples,
+            0,
+            samples,
+            3) == 0) {
+        printf("FAIL: empty relaxed calibration was accepted\n");
+        return 1;
+    }
+
+    if (calibration_calculate(
+            &cal,
+            samples,
+            3,
+            samples,
+            0) == 0) {
+        printf("FAIL: empty contracted calibration was accepted\n");
+        return 1;
+    }
+
+    printf("PASS: empty calibration\n");
+    return 0;
+}
+
+int test_ring_buffer_invalid_age(void)
+{
+    struct ring_buffer rb;
+    int32_t sample;
+
+    rb_init(&rb);
+
+    rb_push(&rb, 100);
+    rb_push(&rb, 200);
+    rb_push(&rb, 300);
+
+    if (rb_get(&rb, 3, &sample) == 0) {
+        printf("FAIL: invalid age was accepted\n");
+        return 1;
+    }
+
+    printf("PASS: invalid ring buffer age\n");
+    return 0;
+}
+
+int test_invalid_calibration_order(void)
+{
+    calibration cal;
+
+    int32_t relaxed[] = {50, 51, 49};
+    int32_t contracted[] = {40, 41, 39};
+
+    if (calibration_calculate(
+            &cal,
+            relaxed,
+            3,
+            contracted,
+            3) == 0) {
+        printf("FAIL: contracted signal below baseline was accepted\n");
+        return 1;
+    }
+
+    printf("PASS: invalid calibration order\n");
     return 0;
 }

@@ -25,18 +25,27 @@ int intent_configure(intent_context *ctx,
             return 1;
         }
     
-    ctx->flexor_hi = (int32_t)(flexor_cal->baseline + enter_fraction *
-    (flexor_cal->mcv - flexor_cal->baseline));
+    ctx->flexor_hi = (int32_t)((float)flexor_cal->baseline +
+                           enter_fraction *
+                           ((float)flexor_cal->mcv -
+                            (float)flexor_cal->baseline));
 
-    ctx->flexor_lo = (int32_t)(flexor_cal->baseline + leave_fraction *
-    (flexor_cal->mcv - flexor_cal->baseline));
-    
-    ctx->extensor_hi = (int32_t)(extensor_cal->baseline
-    + enter_fraction * (extensor_cal->mcv - extensor_cal->baseline));
+ctx->flexor_lo = (int32_t)((float)flexor_cal->baseline +
+                           leave_fraction *
+                           ((float)flexor_cal->mcv -
+                            (float)flexor_cal->baseline));
 
-    ctx->extensor_lo = (int32_t)(extensor_cal->baseline
-    + leave_fraction * (extensor_cal->mcv - extensor_cal->baseline));
+ctx->extensor_hi = (int32_t)((float)extensor_cal->baseline +
+                             enter_fraction *
+                             ((float)extensor_cal->mcv -
+                              (float)extensor_cal->baseline));
 
+ctx->extensor_lo = (int32_t)((float)extensor_cal->baseline +
+                             leave_fraction *
+                             ((float)extensor_cal->mcv -
+                              (float)extensor_cal->baseline));
+
+                              
     ctx->min_dwell_samples = min_dwell_samples;
     ctx->samples_in_state = 0;
 

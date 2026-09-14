@@ -9,6 +9,11 @@
 
 void envelope_init(struct envelope_t *e, float sample_rate, float cutoff, uint16_t window)
 {
+    
+    if (window == 0){
+    window = 1;
+    }
+
     float dt = 1.0f / sample_rate;
 
     e->alpha = 1.0f / (1.0f + 2.0f*3.14159265f * cutoff * dt); //avoid static variable!
@@ -19,7 +24,7 @@ void envelope_init(struct envelope_t *e, float sample_rate, float cutoff, uint16
 
     e->prev_input = 0.0f;
     e->prev_output = 0.0f;
-    e->primed = 0.0f;
+    e->primed = 0;
 }
 
 int32_t envelope_update(struct envelope_t *e, int32_t raw_sample){
@@ -34,23 +39,31 @@ int32_t envelope_update(struct envelope_t *e, int32_t raw_sample){
     e->prev_input = x;
     e->prev_output = y; 
 
-    float rectified = sqrt(y * y); 
+    float rectified = sqrtf(y * y); 
 
     rb_push(&e->rect_buf, (int32_t)rectified);
 
-    int64_t sum = 0; //solo int crasheo 
-    int min;
-
-    if (e->rect_buf.filled < e->window){
-        min = e->rect_buf.filled; 
-    }
-    else {
-        min = e->window; 
-    }
     
-    for(int i= 0; i < min; i++){
-        sum = sum + rb_get(&e->rect_buf, i); 
+    int64_t sum = 0;
+    uint16_t min;
+
+if (e->rect_buf.filled < e->window){
+    min = e->rect_buf.filled; 
+}
+else {
+    min = e->window; 
+}
+
+for (uint16_t i = 0; i < min; i++) {
+    int32_t sample;
+
+    if (rb_get(&e->rect_buf, i, &sample) != 0) {
+        return 0;
     }
+
+    sum = sum + sample;
+}
+
 
     int32_t envelope = (int32_t) (sum / min);
 

@@ -15,7 +15,7 @@ void rb_init(struct ring_buffer *rb);
 
 void rb_push(struct ring_buffer *rb, int32_t sample);
 
-int32_t rb_get(const struct ring_buffer *rb, uint16_t age);
+int rb_get(const struct ring_buffer *rb, uint16_t age, int32_t *sample);
 
 
 #endif // Claude´s correction

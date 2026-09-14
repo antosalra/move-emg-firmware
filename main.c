@@ -16,7 +16,14 @@ int test_bad_calibration(void);
 int test_asymmetric_channels(void);
 int test_calibration(void);
 int test_calibration_to_intent(void);
-
+int test_zero_window(void);
+int test_ring_buffer_empty_read(void);
+int test_ring_buffer_wraparound(void);
+int test_envelope_reset(void);
+int test_envelope_startup(void);
+int test_empty_calibration(void);
+int test_ring_buffer_invalid_age(void);
+int test_invalid_calibration_order(void);
 
 int main(void){
     
@@ -90,6 +97,22 @@ result = test_calibration_to_intent();
 if (result != 0) {
     return 1;
 }
+
+if (test_zero_window() != 0) return 1;
+
+if (test_ring_buffer_empty_read() != 0) return 1;
+
+if (test_ring_buffer_wraparound() != 0) return 1;
+
+if (test_envelope_reset() != 0) return 1;
+
+if (test_envelope_startup() != 0) return 1;
+
+if (test_empty_calibration() != 0) return 1;
+
+if (test_ring_buffer_invalid_age() != 0) return 1;
+
+if (test_invalid_calibration_order() != 0) return 1;
 
 printf("All tests passed\n");
 
