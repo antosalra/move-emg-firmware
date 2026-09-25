@@ -46,7 +46,8 @@ COM_InitTypeDef BspCOMInit;
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
-
+volatile uint8_t  button_flag  = 0;
+volatile uint32_t button_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,8 +133,15 @@ int main(void)
     /* USER CODE END WHILE */
 
 
-	    /* USER CODE BEGIN 3 */
+	/* USER CODE BEGIN 3 */
 	    BSP_LED_Toggle(LED_GREEN);
+
+	    if (button_flag)
+	    {
+	      button_flag = 0;
+	      BSP_LED_Toggle(LED_RED);
+	      printf(">>> BUTTON  interrupts so far: %lu\r\n", button_count);
+	    }
 
 	    uint8_t tx = (uint8_t)count;
 	    uint8_t rx = 0;
@@ -287,7 +295,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void BSP_PB_Callback(Button_TypeDef Button)
+{
+  static uint32_t last = 0;
+  uint32_t now = HAL_GetTick();
+  if (Button == BUTTON_USER && (now - last) > 50)
+  {
+    last = now;
+    button_flag = 1;
+    button_count++;
+  }
+}
 /* USER CODE END 4 */
 
  /* MPU Configuration */
