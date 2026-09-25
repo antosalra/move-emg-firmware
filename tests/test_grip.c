@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
-#include "../intent.h"
+#include "intent.h"
 #include "calibration.h"
 #include "envelope.h"
 #include "ring_buffer.h"
