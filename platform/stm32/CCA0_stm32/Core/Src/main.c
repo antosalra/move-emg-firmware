@@ -68,7 +68,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	  uint32_t count = 0;
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -117,6 +117,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  printf("CCA0 booted\r\n");
   while (1)
   {
 
@@ -124,6 +125,8 @@ int main(void)
 
 	/* USER CODE BEGIN 3 */
 	BSP_LED_Toggle(LED_GREEN);
+	printf("tick %lu\r\n", count);
+	count++;
 	HAL_Delay(500);
   }
   /* USER CODE END 3 */
