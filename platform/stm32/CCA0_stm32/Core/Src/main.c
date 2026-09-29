@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "test_runner.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -127,6 +127,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   printf("CCA0 booted\r\n");
+  run_all_tests();
   while (1)
   {
 
