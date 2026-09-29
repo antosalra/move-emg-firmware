@@ -21,6 +21,11 @@ int test_envelope_startup(void);
 int test_empty_calibration(void);
 int test_ring_buffer_invalid_age(void);
 int test_invalid_calibration_order(void);
+int test_dc_rejection(void);
+int test_1hz_attenuation(void);
+int test_50hz_response(void);
+int test_amplitude_tracking(void);
+int test_step_response(void);
 
 /* A list of functions. Adding a test = adding one line here. */
 typedef int (*test_fn)(void);
@@ -45,6 +50,11 @@ static const test_fn tests[] = {
     test_empty_calibration,
     test_ring_buffer_invalid_age,
     test_invalid_calibration_order,
+    test_dc_rejection,
+    test_1hz_attenuation,
+    test_50hz_response,
+    test_amplitude_tracking,
+    test_step_response,
 };
 
 int run_all_tests(void)
@@ -53,7 +63,8 @@ int run_all_tests(void)
     int failed = 0;
 
     for (int i = 0; i < total; i++) {
-        if (tests[i]() != 0) {
+                if (tests[i]() != 0) {
+            printf("FAIL: test #%d\r\n", i + 1);
             failed++;
         }
     }

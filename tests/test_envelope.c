@@ -18,11 +18,12 @@ int test_dc_rejection(void){
         /* after 500 ms DC response shoul be 0 */
         if (i > 500 && output > 10) {
     printf("DC failure: i = %d, output = %d\n", i, output);
-    return 0;
+    return 1;
         }
     }
 
-    return 1;
+    printf("PASS: DC rejection\n");
+    return 0;
 }
 
 /*Test 2: Attenuation */
@@ -42,11 +43,12 @@ int test_1hz_attenuation(void)
 
         /* High pass -> signal should be atenuated */
         if (i > 1000 && output > 100) {
-            return 0;
+            return 1;
         }
     }
 
-    return 1;
+    printf("PASS: 1 Hz attenuation\n");
+    return 0;
 }
 
 
@@ -67,11 +69,12 @@ int test_50hz_response(void)
 
         /* Ignore the initial transient */
         if (i > 1000 && output < 400) {
-            return 0;
+            return 1;
         }
     }
 
-    return 1;
+    printf("PASS: 50 Hz response\n");
+    return 0;
 }
 
 
@@ -101,7 +104,7 @@ int test_amplitude_tracking(void)
         }
 
         int32_t input = (int32_t)(amplitude *
-                                  sinf(2.0f * 3.14159265 * 50.0f * t));
+                                  sinf(2.0f * 3.14159265f * 50.0f * t));
 
         int32_t output = envelope_update(&e, input);
 
@@ -115,15 +118,16 @@ int test_amplitude_tracking(void)
     }
 
     /* High amplitude should produce roughly twice the envelope */
-    if (max_high < max_low * 1.7f) {
-        return 0;
+    if ((float)max_high < (float)max_low * 1.7f) {
+        return 1;
     }
 
-    if (max_high > max_low * 2.3f) {
-        return 0;
+    if ((float)max_high > (float)max_low * 2.3f) {
+        return 1;
     }
 
-    return 1;
+    printf("PASS: amplitude tracking\n");
+    return 0;
 }
 
 
@@ -135,7 +139,7 @@ int test_step_response(void){
 
     envelope_init(&e, 1000.0f, 20.0f, 100);
 
-    const int total_samples = 500;
+    enum { total_samples = 500 };
     const int step_sample = 100; 
 
     const float freq = 50.0f;
@@ -156,7 +160,7 @@ int test_step_response(void){
         else {
             float t = (float)(i - step_sample) / (sample_rate);
 
-            input = (int32_t)(amplitude * sinf(2.0f * 3.14159265 * freq * t));
+            input = (int32_t)(amplitude * sinf(2.0f * 3.14159265f * freq * t));
         }
 
         history[i] = envelope_update(&e, input);
@@ -165,8 +169,8 @@ int test_step_response(void){
     int32_t steady_state = history[total_samples - 1];
 
     //Define  10% and 90% 
-    int32_t lo = (int32_t)(0.1f * steady_state);
-    int32_t hi = (int32_t)(0.9f * steady_state);
+    int32_t lo = (int32_t)(0.1f * (float)steady_state);
+int32_t hi = (int32_t)(0.9f * (float)steady_state);
 
     //envelope reaches 10%
     int idx_lo = -1;
@@ -192,12 +196,12 @@ int test_step_response(void){
 
      if (idx_lo < 0 || idx_hi < 0) {
         printf("FAIL: step response — threshold not reached\n");
-        return 0;
+        return 1;
     }
 
     float rise_time_ms = (float)(idx_hi - idx_lo);
 
-    float expected_ms = 80.0f;
+        float expected_ms = 80.0f;
     float tolerance_ms = 15.0f;
 
     int pass = (rise_time_ms >= expected_ms - tolerance_ms) &&
@@ -210,50 +214,5 @@ int test_step_response(void){
            expected_ms,
            tolerance_ms);
 
-    return pass;
-
+    return pass ? 0 : 1;
 }
-
-
-int main(void)
-{
-    if (test_dc_rejection()) {
-        printf("PASS: DC rejection\n");
-    }
-    else {
-        printf("FAIL: DC rejection\n");
-    }
-
-    if (test_1hz_attenuation()) {
-        printf("PASS: 1 Hz attenuation\n");
-    }
-    else {
-        printf("FAIL: 1 Hz attenuation\n");
-    }
-
-    if (test_50hz_response()) {
-        printf("PASS: 50 Hz response\n");
-    }
-    else {
-        printf("FAIL: 50 Hz response\n");
-    }
-
-    if (test_amplitude_tracking()) {
-        printf("PASS: amplitude tracking\n");
-    }
-    else {
-        printf("FAIL: amplitude tracking\n");
-    }
-
-
-    if (test_step_response()) {
-    printf("PASS: step response\n");
-}
-else {
-    printf("FAIL: step response\n");
-}
-    return 0;
-}
-
-    
-   
