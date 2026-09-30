@@ -22,6 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "test_runner.h"
+#include "envelope.h"
+#include "intent.h"
+#include "calibration.h"
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +52,9 @@ SPI_HandleTypeDef hspi1;
 /* USER CODE BEGIN PV */
 volatile uint8_t  button_flag  = 0;
 volatile uint32_t button_count = 0;
+struct envelope_t flex_env;
+struct envelope_t ext_env;
+intent_context    intent;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,8 +63,9 @@ void PeriphCommonClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-/* USER CODE BEGIN PFP */
 
+/* USER CODE BEGIN PFP */
+static void show_state(hand_state s);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -73,7 +81,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	  uint32_t count = 0;
+
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -128,33 +136,61 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   printf("CCA0 booted\r\n");
   run_all_tests();
+  run_all_tests();
+
+  envelope_init(&flex_env, 1000.0f, 20.0f, 100);
+  envelope_init(&ext_env,  1000.0f, 20.0f, 100);
+  intent_init(&intent);
+
+  calibration flex_cal = { .baseline = 30, .mcv = 600 };
+  calibration ext_cal  = { .baseline = 30, .mcv = 600 };
+  if (intent_configure(&intent, &flex_cal, &ext_cal, 0.30f, 0.15f, 100) != 0) {
+    printf("calibration rejected\r\n");
+  }
+
+  static const char *state_name[] = { "IDLE", "CLOSING", "HOLDING", "OPENING" };
+  hand_state last_state = INTENT_IDLE;
+  show_state(last_state);
+
+  uint32_t sample_ms = HAL_GetTick();
+  uint32_t n = 0;
   while (1)
   {
+
 
     /* USER CODE END WHILE */
 
 
-	/* USER CODE BEGIN 3 */
-	    BSP_LED_Toggle(LED_GREEN);
+	    /* USER CODE BEGIN 3 */
+	    uint32_t now = HAL_GetTick();
 
-	    if (button_flag)
+	    while (sample_ms != now)            /* one pass per millisecond = 1 kHz */
 	    {
-	      button_flag = 0;
-	      BSP_LED_Toggle(LED_RED);
-	      printf(">>> BUTTON  interrupts so far: %lu\r\n", button_count);
+	      sample_ms++;
+
+	      /* fake EMG: 100 Hz sine, strong while the button is held */
+	      float phase    = (float)(n % 10) / 10.0f;
+	      float wave     = sinf(2.0f * 3.14159265f * phase);
+	      float flex_amp = (BSP_PB_GetState(BUTTON_USER) != 0) ? 1000.0f : 30.0f;
+	      n++;
+
+	      int32_t flex_raw = (int32_t)(flex_amp * wave);
+	      int32_t ext_raw  = (int32_t)(30.0f * wave);
+
+	      int32_t flex_e = envelope_update(&flex_env, flex_raw);
+	      int32_t ext_e  = envelope_update(&ext_env,  ext_raw);
+	      hand_state s   = intent_update(&intent, flex_e, ext_e);
+
+	      if (s != last_state)
+	      {
+	        printf("%s -> %s  (flexor envelope %ld)\r\n",
+	               state_name[last_state], state_name[s], (long)flex_e);
+	        show_state(s);
+	        last_state = s;
+	      }
 	    }
-
-	    uint8_t tx = (uint8_t)count;
-	    uint8_t rx = 0;
-	    HAL_StatusTypeDef st = HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1, 100);
-
-	    printf("tick %lu  st=%d  sent 0x%02X  got 0x%02X  %s\r\n",
-	           count, st, tx, rx, (st == HAL_OK && rx == tx) ? "OK" : "FAIL");
-
-	    count++;
-	    HAL_Delay(500);
 	  }
-  /* USER CODE END 3 */
+	  /* USER CODE END 3 */
 }
 
 /**
@@ -306,6 +342,16 @@ void BSP_PB_Callback(Button_TypeDef Button)
     button_flag = 1;
     button_count++;
   }
+}
+static void show_state(hand_state s)
+{
+  BSP_LED_Off(LED_GREEN);
+  BSP_LED_Off(LED_YELLOW);
+  BSP_LED_Off(LED_RED);
+
+  if      (s == INTENT_CLOSING) BSP_LED_On(LED_YELLOW);
+  else if (s == INTENT_HOLDING) BSP_LED_On(LED_RED);
+  else if (s == INTENT_OPENING) BSP_LED_On(LED_GREEN);
 }
 /* USER CODE END 4 */
 
