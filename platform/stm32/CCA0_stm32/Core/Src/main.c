@@ -65,6 +65,7 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 static void show_state(hand_state s);
+static void motor_apply(hand_state s);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -149,6 +150,7 @@ int main(void)
   static const char *state_name[] = { "IDLE", "CLOSING", "HOLDING", "OPENING" };
   hand_state last_state = INTENT_IDLE;
   show_state(last_state);
+  motor_apply(last_state);
 
   uint32_t sample_ms = HAL_GetTick();
   uint32_t n = 0;
@@ -162,9 +164,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* motor runs only while the blue button is held */
-    HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin,
-                      (BSP_PB_GetState(BUTTON_USER) != 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
     uint32_t now = HAL_GetTick();
 
@@ -194,6 +193,7 @@ int main(void)
         printf("%s -> %s  (flexor envelope %ld)\r\n",
                state_name[last_state], state_name[s], (long)flex_e);
         show_state(s);
+        motor_apply(s);
         last_state = s;
       }
     }
@@ -389,6 +389,18 @@ static void show_state(hand_state s)
   if      (s == INTENT_CLOSING) BSP_LED_On(LED_YELLOW);
   else if (s == INTENT_HOLDING) BSP_LED_On(LED_RED);
   else if (s == INTENT_OPENING) BSP_LED_On(LED_GREEN);
+}
+static void motor_apply(hand_state s)
+{
+  if (s == INTENT_CLOSING) {
+    HAL_GPIO_WritePin(MOT_PH_GPIO_Port, MOT_PH_Pin, GPIO_PIN_RESET);  /* close direction */
+    HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin, GPIO_PIN_SET);
+  } else if (s == INTENT_OPENING) {
+    HAL_GPIO_WritePin(MOT_PH_GPIO_Port, MOT_PH_Pin, GPIO_PIN_SET);    /* open direction */
+    HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin, GPIO_PIN_SET);
+  } else {
+    HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin, GPIO_PIN_RESET);  /* IDLE / HOLDING: stop */
+  }
 }
 /* USER CODE END 4 */
 
