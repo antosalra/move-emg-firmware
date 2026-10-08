@@ -63,7 +63,6 @@ void PeriphCommonClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-
 /* USER CODE BEGIN PFP */
 static void show_state(hand_state s);
 /* USER CODE END PFP */
@@ -136,7 +135,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   printf("CCA0 booted\r\n");
   run_all_tests();
-  run_all_tests();
 
   envelope_init(&flex_env, 1000.0f, 20.0f, 100);
   envelope_init(&ext_env,  1000.0f, 20.0f, 100);
@@ -154,43 +152,53 @@ int main(void)
 
   uint32_t sample_ms = HAL_GetTick();
   uint32_t n = 0;
+
+  HAL_GPIO_WritePin(MOT_PH_GPIO_Port,  MOT_PH_Pin,  GPIO_PIN_RESET);  /* direction */
+  HAL_GPIO_WritePin(MOT_SLP_GPIO_Port, MOT_SLP_Pin, GPIO_PIN_SET);    /* wake driver */
+
   while (1)
   {
 
-
     /* USER CODE END WHILE */
 
+    /* USER CODE BEGIN 3 */
+    /* motor runs only while the blue button is held */
+    HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin,
+                      (BSP_PB_GetState(BUTTON_USER) != 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-	    /* USER CODE BEGIN 3 */
-	    uint32_t now = HAL_GetTick();
+    uint32_t now = HAL_GetTick();
 
-	    while (sample_ms != now)            /* one pass per millisecond = 1 kHz */
-	    {
-	      sample_ms++;
+    while (sample_ms != now)            /* one pass per millisecond = 1 kHz */
+    {
+      sample_ms++;
 
-	      /* fake EMG: 100 Hz sine, strong while the button is held */
-	      float phase    = (float)(n % 10) / 10.0f;
-	      float wave     = sinf(2.0f * 3.14159265f * phase);
-	      float flex_amp = (BSP_PB_GetState(BUTTON_USER) != 0) ? 1000.0f : 30.0f;
-	      n++;
+      /* fake EMG: 100 Hz sine, strong while the button is held */
+      float phase    = (float)(n % 10) / 10.0f;
+      float wave     = sinf(2.0f * 3.14159265f * phase);
+      float flex_amp = (BSP_PB_GetState(BUTTON_USER) != 0) ? 1000.0f : 30.0f;
+      n++;
 
-	      int32_t flex_raw = (int32_t)(flex_amp * wave);
-	      int32_t ext_raw  = (int32_t)(30.0f * wave);
+      int32_t flex_raw = (int32_t)(flex_amp * wave);
 
-	      int32_t flex_e = envelope_update(&flex_env, flex_raw);
-	      int32_t ext_e  = envelope_update(&ext_env,  ext_raw);
-	      hand_state s   = intent_update(&intent, flex_e, ext_e);
+      /* active-low: wire to GND = extensor contracting */
+      int ext_active  = (HAL_GPIO_ReadPin(EXT_SIM_GPIO_Port, EXT_SIM_Pin) == GPIO_PIN_RESET);
+      float ext_amp   = ext_active ? 1000.0f : 30.0f;
+      int32_t ext_raw = (int32_t)(ext_amp * wave);
 
-	      if (s != last_state)
-	      {
-	        printf("%s -> %s  (flexor envelope %ld)\r\n",
-	               state_name[last_state], state_name[s], (long)flex_e);
-	        show_state(s);
-	        last_state = s;
-	      }
-	    }
-	  }
-	  /* USER CODE END 3 */
+      int32_t flex_e = envelope_update(&flex_env, flex_raw);
+      int32_t ext_e  = envelope_update(&ext_env,  ext_raw);
+      hand_state s   = intent_update(&intent, flex_e, ext_e);
+
+      if (s != last_state)
+      {
+        printf("%s -> %s  (flexor envelope %ld)\r\n",
+               state_name[last_state], state_name[s], (long)flex_e);
+        show_state(s);
+        last_state = s;
+      }
+    }
+  }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -316,15 +324,44 @@ static void MX_SPI1_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(MOT_EN_GPIO_Port, MOT_EN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, MOT_PH_Pin|MOT_SLP_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : EXT_SIM_Pin */
+  GPIO_InitStruct.Pin = EXT_SIM_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(EXT_SIM_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MOT_EN_Pin */
+  GPIO_InitStruct.Pin = MOT_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(MOT_EN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : MOT_PH_Pin MOT_SLP_Pin */
+  GPIO_InitStruct.Pin = MOT_PH_Pin|MOT_SLP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

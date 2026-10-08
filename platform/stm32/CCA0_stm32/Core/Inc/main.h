@@ -60,6 +60,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define EXT_SIM_Pin GPIO_PIN_3
+#define EXT_SIM_GPIO_Port GPIOF
+#define MOT_EN_Pin GPIO_PIN_15
+#define MOT_EN_GPIO_Port GPIOD
+#define MOT_PH_Pin GPIO_PIN_8
+#define MOT_PH_GPIO_Port GPIOB
+#define MOT_SLP_Pin GPIO_PIN_9
+#define MOT_SLP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
